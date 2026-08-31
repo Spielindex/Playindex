@@ -9,11 +9,21 @@
 \set ON_ERROR_STOP off
 \pset pager off
 
+-- Zuruecksetzen, damit die Suite auch gegen eine bereits benutzte Datenbank
+-- wiederholbar ist (run.sh baut ohnehin frisch auf, aber ein manueller
+-- Wiederholungslauf soll nicht falsche Fehler melden).
+truncate booking.booking_events, booking.booking_participants, booking.open_matches,
+         booking.payments, booking.bookings, booking.club_members cascade;
+delete from sso.identity_links;
+delete from sso.handoff_tokens;
+delete from sso.request_nonces;
+
 -- Testnutzer
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111','alex@example.com'),
   ('22222222-2222-2222-2222-222222222222','bea@example.com')
-on conflict do nothing;
+on conflict (id) do update
+  set email = excluded.email, email_confirmed_at = now();
 insert into public.profiles (id, display_name, padel_elo) values
   ('11111111-1111-1111-1111-111111111111','Alex', 1450.0),
   ('22222222-2222-2222-2222-222222222222','Bea',  1380.0)
@@ -245,6 +255,8 @@ begin
     raise notice '  [FAIL] Verknuepfung verloren';
   end if;
 
+  update auth.users set email = 'alex@example.com' where id = '11111111-1111-1111-1111-111111111111';
+
   -- Unbekanntes Quellkonto -> NULL (Aufrufer legt per Admin-API an)
   if sso.resolve_identity('tennisindex','tx-999','niemand@example.com') is null then
     raise notice '  [OK]   unbekanntes Quellkonto liefert NULL';
@@ -252,10 +264,29 @@ begin
     raise notice '  [FAIL] unbekanntes Quellkonto aufgeloest';
   end if;
 
-  -- Nonce: einmal true, dann false
-  if sso.claim_nonce('nonce-abc','tennisindex') and not sso.claim_nonce('nonce-abc','tennisindex') then
-    raise notice '  [OK]   Nonce-Replay abgewiesen';
-  else
-    raise notice '  [FAIL] Nonce-Replay moeglich';
-  end if;
+  -- Nonce: einmal true, dann false. Zufaellig, damit der Test wiederholbar ist.
+  declare v_nonce text := gen_random_uuid()::text;
+  begin
+    if sso.claim_nonce(v_nonce,'tennisindex') and not sso.claim_nonce(v_nonce,'tennisindex') then
+      raise notice '  [OK]   Nonce-Replay abgewiesen';
+    else
+      raise notice '  [FAIL] Nonce-Replay moeglich';
+    end if;
+  end;
 end $$;
+
+\echo ''
+\echo '=== 11. Preisabfrage ist nicht als Orakel missbrauchbar ==='
+set role authenticated;
+select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222', false);
+do $$
+begin
+  perform pg_temp.expect_fail('calculate_price mit fremder user_id',
+    format('select booking.calculate_price(%L::uuid, %L::timestamptz, %L::timestamptz, %L::uuid)',
+           pg_temp.court('padel-1'), pg_temp.slot(16), pg_temp.slot(18),
+           '11111111-1111-1111-1111-111111111111'), '42501');
+  perform pg_temp.try('price_for_me ohne Parameter',
+    format('select booking.price_for_me(%L::uuid, %L::timestamptz, %L::timestamptz)',
+           pg_temp.court('padel-1'), pg_temp.slot(16), pg_temp.slot(18)));
+end $$;
+reset role;

@@ -4,6 +4,12 @@
    Design-Tokens. Bewusst zurueckhaltend: eine Akzentfarbe, viel Weissraum,
    grosse Trefferflaechen. shadcn-svelte-kompatible Variablennamen, damit
    Komponenten spaeter ohne Anpassung passen.
+
+   WICHTIG: `@theme` wird von Tailwind v4 immer nach :root gehoben - auch aus
+   einem @media-Block heraus. Der Dark-Mode darf deshalb NICHT als zweites
+   `@theme` geschrieben werden (die Werte wuerden sonst unbedingt gelten und
+   den hellen Modus ueberschreiben). Stattdessen: einmal `@theme` fuer die
+   Basis, danach normale Custom-Property-Overrides auf :root.
 --------------------------------------------------------------------------- */
 @theme {
   --color-background: oklch(0.99 0 0);
@@ -16,10 +22,11 @@
   --color-primary: oklch(0.55 0.19 150);
   --color-primary-foreground: oklch(0.99 0 0);
 
-  --color-free: oklch(0.96 0.03 150);
-  --color-free-foreground: oklch(0.42 0.14 150);
-  --color-busy: oklch(0.955 0 0);
-  --color-match: oklch(0.72 0.16 60);
+  --color-free: oklch(0.95 0.045 150);
+  --color-free-foreground: oklch(0.44 0.15 150);
+  --color-busy: oklch(0.945 0 0);
+  --color-match: oklch(0.78 0.15 65);
+  --color-match-foreground: oklch(0.42 0.11 55);
 
   --color-destructive: oklch(0.58 0.22 25);
 
@@ -28,16 +35,22 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root {
     --color-background: oklch(0.15 0 0);
     --color-foreground: oklch(0.97 0 0);
     --color-muted: oklch(0.21 0 0);
-    --color-muted-foreground: oklch(0.66 0 0);
+    --color-muted-foreground: oklch(0.68 0 0);
     --color-border: oklch(0.27 0 0);
     --color-card: oklch(0.19 0 0);
-    --color-free: oklch(0.28 0.06 150);
-    --color-free-foreground: oklch(0.85 0.14 150);
-    --color-busy: oklch(0.22 0 0);
+
+    --color-primary: oklch(0.6 0.18 150);
+    --color-primary-foreground: oklch(0.14 0 0);
+
+    --color-free: oklch(0.3 0.07 150);
+    --color-free-foreground: oklch(0.88 0.13 150);
+    --color-busy: oklch(0.245 0 0);
+    --color-match: oklch(0.62 0.13 65);
+    --color-match-foreground: oklch(0.93 0.06 70);
   }
 }
 
@@ -46,9 +59,21 @@ html {
   scroll-behavior: smooth;
 }
 
-/* iOS-Safari: kein Zoom beim Fokus auf Eingabefelder */
+/* iOS-Safari zoomt beim Fokus auf Felder unter 16px */
 input,
 select,
 textarea {
   font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

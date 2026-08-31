@@ -256,8 +256,14 @@ export type Database = {
         Args: { p_booking_id: string; p_reason?: string | null };
         Returns: BookingRow;
       };
+      /** Nur fuer Trigger und Serverkontext - anon/authenticated haben kein EXECUTE. */
       calculate_price: {
         Args: { p_court_id: string; p_starts_at: string; p_ends_at: string; p_user_id?: string | null };
+        Returns: number;
+      };
+      /** Preis fuer den aufrufenden Nutzer. Die einzige Preisfunktion fuer Clients. */
+      price_for_me: {
+        Args: { p_court_id: string; p_starts_at: string; p_ends_at: string };
         Returns: number;
       };
     };

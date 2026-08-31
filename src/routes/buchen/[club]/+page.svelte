@@ -1,26 +1,59 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import { invalidateAll } from '$app/navigation';
+  import BookingGrid from '$lib/components/BookingGrid.svelte';
+  import BookingSheet from '$lib/components/BookingSheet.svelte';
+  import type { ScheduleCourt } from '$lib/types/database';
+  import type { Slot } from '$lib/utils/zeit';
+  import type { ActionData, PageData } from './$types';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
   const plan = $derived(data.plan);
-  const zone = $derived(plan.club.timezone);
+  let auswahl = $state<{ court: ScheduleCourt; slot: Slot; maxDauer: number } | null>(null);
 
-  function uhrzeit(iso: string): string {
-    return new Intl.DateTimeFormat('de-DE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: zone
-    }).format(new Date(iso));
+  // Sekundengenau ist unnoetig - die "Jetzt"-Linie darf eine Minute nachlaufen.
+  let jetzt = $state(new Date());
+  $effect(() => {
+    const timer = setInterval(() => (jetzt = new Date()), 60_000);
+    return () => clearInterval(timer);
+  });
+
+  // Nach erfolgreicher Buchung: Sheet zu, Grid neu laden.
+  $effect(() => {
+    if (form?.gebucht) {
+      auswahl = null;
+      void invalidateAll();
+    }
+  });
+
+  /** Preis kommt vom Server - siehe booking.price_for_me. */
+  async function preisAbfrage(courtId: string, start: Date, ende: Date) {
+    const { data: cent, error } = await data.supabase.rpc('price_for_me', {
+      p_court_id: courtId,
+      p_starts_at: start.toISOString(),
+      p_ends_at: ende.toISOString()
+    });
+    return error ? null : cent;
   }
 
   function tagWechseln(tage: number): string {
     const d = new Date(`${data.datum}T12:00:00Z`);
     d.setUTCDate(d.getUTCDate() + tage);
-    const naechstes = d.toISOString().slice(0, 10);
     const sport = data.sport ? `&sport=${data.sport}` : '';
-    return `?datum=${naechstes}${sport}`;
+    return `?datum=${d.toISOString().slice(0, 10)}${sport}`;
   }
+
+  const tagTitel = $derived(
+    new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+      new Date(`${data.datum}T12:00:00Z`)
+    )
+  );
+
+  const filter = [
+    { wert: null, label: 'Alle' },
+    { wert: 'padel', label: 'Padel' },
+    { wert: 'tennis', label: 'Tennis' }
+  ] as const;
 </script>
 
 <svelte:head>
@@ -28,76 +61,74 @@
   <meta name="description" content="Padel- und Tennisplätze im {plan.club.name} online buchen." />
 </svelte:head>
 
-<div class="mx-auto w-full max-w-6xl px-4 py-6">
-  <div class="mb-6 flex items-center justify-between gap-3">
+<div class="mx-auto w-full max-w-5xl px-4 py-5">
+  <div class="mb-4 flex items-start justify-between gap-3">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">{plan.club.name}</h1>
-      <p class="text-sm text-muted-foreground">
-        {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(
-          new Date(`${data.datum}T12:00:00Z`)
-        )}
-      </p>
+      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{plan.club.name}</h1>
+      <p class="text-sm text-muted-foreground">{tagTitel}</p>
     </div>
-    <div class="flex gap-1">
+    <div class="flex shrink-0 gap-1">
       <a
         href={tagWechseln(-1)}
-        class="rounded-full border border-border px-3 py-1.5 text-sm"
+        class="grid size-9 place-items-center rounded-full border border-border"
         aria-label="Vorheriger Tag">←</a
       >
       <a
         href={tagWechseln(1)}
-        class="rounded-full border border-border px-3 py-1.5 text-sm"
+        class="grid size-9 place-items-center rounded-full border border-border"
         aria-label="Nächster Tag">→</a
       >
     </div>
   </div>
 
-  <nav class="mb-6 flex gap-2" aria-label="Sportart">
-    {#each [{ wert: null, label: 'Alle' }, { wert: 'padel', label: 'Padel' }, { wert: 'tennis', label: 'Tennis' }] as filter (filter.label)}
+  <nav class="mb-4 flex gap-2" aria-label="Sportart">
+    {#each filter as f (f.label)}
       <a
-        href="?datum={data.datum}{filter.wert ? `&sport=${filter.wert}` : ''}"
+        href="?datum={data.datum}{f.wert ? `&sport=${f.wert}` : ''}"
+        aria-current={data.sport === f.wert ? 'page' : undefined}
         class="rounded-full px-4 py-1.5 text-sm font-medium transition
-               {data.sport === filter.wert
+               {data.sport === f.wert
           ? 'bg-foreground text-background'
           : 'border border-border text-muted-foreground'}"
       >
-        {filter.label}
+        {f.label}
       </a>
     {/each}
   </nav>
 
-  <!--
-    Platzhalter. Schritt 3 ersetzt diesen Block durch <BookingGrid {plan} />
-    mit horizontalem Scroll, Slot-Rastern und Tap-to-Book. Die Daten stehen
-    hier bereits vollstaendig und in der richtigen Form bereit.
-  -->
-  <div class="space-y-3">
-    {#each plan.courts as platz (platz.id)}
-      <section class="rounded-2xl border border-border bg-card p-4">
-        <header class="mb-2 flex items-baseline justify-between">
-          <h2 class="font-medium">{platz.name}</h2>
-          <span class="text-xs text-muted-foreground">
-            {platz.opens_at ? `${platz.opens_at.slice(0, 5)}–${platz.closes_at?.slice(0, 5)}` : 'geschlossen'}
-          </span>
-        </header>
-        {#if platz.bookings.length === 0}
-          <p class="text-sm text-free-foreground">Ganzer Tag frei</p>
-        {:else}
-          <ul class="flex flex-wrap gap-2">
-            {#each platz.bookings as b (b.id)}
-              <li
-                class="rounded-lg px-2.5 py-1 text-xs
-                       {b.is_open_match ? 'bg-match/20 text-foreground' : 'bg-busy text-muted-foreground'}"
-              >
-                {uhrzeit(b.starts_at)}–{uhrzeit(b.ends_at)}
-                {#if b.is_open_match}<span class="font-medium"> · sucht {b.players_needed}</span>{/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-    {:else}
-      <p class="text-sm text-muted-foreground">Für diesen Filter gibt es keine Plätze.</p>
-    {/each}
-  </div>
+  {#if form?.fehler}
+    <p
+      class="mb-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive"
+      role="alert"
+      aria-live="assertive"
+    >
+      {form.fehler}
+    </p>
+  {/if}
+
+  {#if form?.gebucht}
+    <p
+      class="mb-4 rounded-xl bg-free px-4 py-3 text-sm text-free-foreground"
+      role="status"
+      aria-live="polite"
+    >
+      Platz gebucht. Du findest ihn unter
+      <a href="/meine-buchungen" class="underline">Meine Buchungen</a>.
+    </p>
+  {/if}
+
+  <BookingGrid
+    {plan}
+    datum={data.datum}
+    {jetzt}
+    onauswahl={(a) => (auswahl = a)}
+  />
 </div>
+
+<BookingSheet
+  {plan}
+  {auswahl}
+  angemeldet={!!data.user}
+  {preisAbfrage}
+  onschliessen={() => (auswahl = null)}
+/>

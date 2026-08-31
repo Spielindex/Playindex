@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "db:test": "./supabase/tests/run.sh",
     "test:sso": "node --experimental-strip-types --no-warnings src/lib/server/sso-crypto.test.ts",
-    "test": "npm run test:sso && npm run check"
+    "test": "npm run test:sso && npm run test:zeit && npm run check",
+    "test:zeit": "node --experimental-strip-types --no-warnings src/lib/utils/zeit.test.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-cloudflare": "^7.0.0",

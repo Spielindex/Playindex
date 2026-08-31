@@ -13,7 +13,7 @@ Tailwind CSS + shadcn-svelte · Cloudflare Pages
 |---|---|---|
 | 1 | Datenbank-Architektur (Schema, RLS, Logik) | ✅ fertig & getestet |
 | 2 | SvelteKit Auth & Routing, SSO-Implementierung | ✅ fertig & getestet |
-| 3 | `BookingGrid.svelte` | offen |
+| 3 | `BookingGrid.svelte` | ✅ fertig & getestet |
 
 ## Dokumentation
 
@@ -23,6 +23,8 @@ Tailwind CSS + shadcn-svelte · Cloudflare Pages
   Auth-Projekt und wie der domainübergreifende Wechsel funktioniert
 - [SvelteKit-Struktur](docs/03-sveltekit-struktur.md) – Route-Konzept,
   Session-Handling und die Brücke zwischen zwei Supabase-Projekten
+- [BookingGrid](docs/04-bookinggrid.md) – Aufbau des Grids, Zeitzonen-Logik
+  und die vier Layout-Bugs, die erst im echten Browser sichtbar wurden
 
 ## Loslegen
 
@@ -45,9 +47,8 @@ Danach im Dashboard unter **Settings → API → Exposed schemas** die Schemas
 ## Tests
 
 ```bash
-./supabase/tests/run.sh   # 23 Assertions gegen ein lokales Postgres (≥ 14)
-npm run test:sso          # 12 Assertions: HMAC, Zeitfenster, Open-Redirect
-npm run check             # Typprüfung
+./supabase/tests/run.sh   # 25 Assertions gegen ein lokales Postgres (≥ 14)
+npm test                  # SSO-Krypto + Zeitlogik + Typprüfung
 ```
 
 Die DB-Tests decken Preislogik, Doppelbuchungsschutz, Buchungsregeln,
@@ -60,9 +61,11 @@ Postgres.
 ```
 src/
   routes/       Route-Konzept siehe docs/03
+  lib/components/  BookingGrid + BookingSheet
+  lib/utils/    Zeitzonen- und Slot-Logik
   lib/server/   service_role + SSO – nie aus Client-Code importierbar
 supabase/
-  migrations/   10 Migrationen, idempotent, in Reihenfolge ausführbar
+  migrations/   11 Migrationen, idempotent, in Reihenfolge ausführbar
   seed.sql      Startdaten Sportcenter Hahn (Platzhalter – bitte anpassen)
   tests/        Verhaltenstests + minimaler Supabase-Stub
 examples/
