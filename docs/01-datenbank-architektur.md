@@ -1,7 +1,7 @@
 # Schritt 1 · Datenbank-Architektur
 
 > Status: implementiert in `supabase/migrations/`, getestet gegen PostgreSQL 16
-> (`./supabase/tests/run.sh`, 20 Assertions grün).
+> (`./supabase/tests/run.sh`, 18 Assertions grün).
 
 ## Die vier Entscheidungen, die alles andere bestimmen
 
