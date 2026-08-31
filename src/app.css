@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Design-Tokens. Bewusst zurueckhaltend: eine Akzentfarbe, viel Weissraum,
+   grosse Trefferflaechen. shadcn-svelte-kompatible Variablennamen, damit
+   Komponenten spaeter ohne Anpassung passen.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-background: oklch(0.99 0 0);
+  --color-foreground: oklch(0.16 0 0);
+  --color-muted: oklch(0.96 0 0);
+  --color-muted-foreground: oklch(0.52 0 0);
+  --color-border: oklch(0.92 0 0);
+  --color-card: oklch(1 0 0);
+
+  --color-primary: oklch(0.55 0.19 150);
+  --color-primary-foreground: oklch(0.99 0 0);
+
+  --color-free: oklch(0.96 0.03 150);
+  --color-free-foreground: oklch(0.42 0.14 150);
+  --color-busy: oklch(0.955 0 0);
+  --color-match: oklch(0.72 0.16 60);
+
+  --color-destructive: oklch(0.58 0.22 25);
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-background: oklch(0.15 0 0);
+    --color-foreground: oklch(0.97 0 0);
+    --color-muted: oklch(0.21 0 0);
+    --color-muted-foreground: oklch(0.66 0 0);
+    --color-border: oklch(0.27 0 0);
+    --color-card: oklch(0.19 0 0);
+    --color-free: oklch(0.28 0.06 150);
+    --color-free-foreground: oklch(0.85 0.14 150);
+    --color-busy: oklch(0.22 0 0);
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+/* iOS-Safari: kein Zoom beim Fokus auf Eingabefelder */
+input,
+select,
+textarea {
+  font-size: 16px;
+}

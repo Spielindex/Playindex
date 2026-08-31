@@ -68,9 +68,9 @@ Der Umstieg von Option A auf C ist später möglich, weil das Buchungsschema nur
 über `auth.uid()` und `booking.v_player` an die Identität gekoppelt ist – zwei
 Berührungspunkte, nicht zwanzig.
 
-### Falls padelindex.de und tennisindex.eu heute zwei getrennte Projekte sind
+### Bestätigt: padelindex.de und tennisindex.eu sind heute zwei getrennte Projekte
 
-Dann ist die Konsolidierung Voraussetzung, aber unkritisch: Supabase kann Nutzer
+Damit ist die Konsolidierung Voraussetzung — aber unkritisch: Supabase kann Nutzer
 **mit ihrem bestehenden bcrypt-Hash** importieren
 (`auth.admin.createUser({ email, password_hash })`). Niemand muss sich neu
 registrieren, niemand braucht ein neues Passwort.
@@ -78,6 +78,11 @@ registrieren, niemand braucht ein neues Passwort.
 Reihenfolge: Projekt mit den *meisten* Nutzern wird zum Identity-Projekt →
 Nutzer des zweiten importieren (E-Mail-Kollisionen zusammenführen) → Profile
 migrieren → zweite App auf das Identity-Projekt umstellen → Playindex dazu.
+
+**Wichtig: Playindex muss darauf nicht warten.** Der Übergangsweg steht in
+[docs/03](./03-sveltekit-struktur.md) — `sso.identity_links` bildet Konten des
+zweiten Projekts auf Identitäten im Identity-Projekt ab, solange beide parallel
+laufen. Nach dem Cutover fällt diese Brücke ersatzlos weg.
 
 ---
 

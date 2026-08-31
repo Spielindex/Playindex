@@ -7,9 +7,13 @@
 --     Grund: Playindex teilt sich das Supabase-Projekt mit PadelIndex/TennisIndex.
 --     `public` gehoert dem zentralen Index-Oekosystem, `booking` gehoert uns.
 --     -> Keine Namenskollisionen, getrennte Grants, klare Ownership-Grenze.
---   * `booking` muss im Supabase Dashboard unter
+--   * `booking` und `sso` muessen im Supabase Dashboard unter
 --     Settings -> API -> "Exposed schemas" ergaenzt werden,
 --     damit PostgREST/supabase-js darauf zugreifen kann.
+--     Bei `sso` ist das unbedenklich: anon und authenticated haben dort
+--     KEINE Rechte - die Sicherheitsgrenze sind die Grants, nicht die
+--     Sichtbarkeit. Ohne USAGE auf dem Schema antwortet PostgREST mit
+--     "permission denied", egal welcher Accept-Profile-Header kommt.
 --   * Alle Migrationen sind idempotent (re-runnable im SQL-Editor).
 -- =============================================================================
 
@@ -25,7 +29,7 @@ create schema if not exists booking;
 create schema if not exists sso;
 
 comment on schema booking is 'Playindex Platzbuchung (Clubs, Plaetze, Buchungen, Open Matches, Zahlungen).';
-comment on schema sso     is 'Cross-Domain Session-Handoff zwischen padelindex.de / tennisindex.eu / playindex.de. Nicht ueber PostgREST exponieren.';
+comment on schema sso     is 'Cross-Domain Session-Handoff zwischen padelindex.de / tennisindex.eu / playindex.de. Nur fuer service_role.';
 
 grant usage on schema booking to anon, authenticated, service_role;
 grant usage on schema sso     to service_role;

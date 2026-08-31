@@ -19,9 +19,9 @@
 --   * Nur der SHA-256-Hash des Tickets liegt in der DB - ein Datenbank-Leak
 --     erlaubt keine Anmeldung.
 --   * TTL 60 Sekunden, strikt einmalig einloesbar (atomares UPDATE ... RETURNING).
---   * Die Tabelle ist NICHT ueber PostgREST erreichbar (Schema `sso` wird nicht
---     exponiert); Ausgabe und Einloesung laufen ausschliesslich serverseitig
---     mit service_role.
+--   * Weder anon noch authenticated haben irgendein Recht im Schema `sso`.
+--     Ausgabe und Einloesung laufen ausschliesslich serverseitig mit
+--     service_role.
 --   * redirect_to wird gespeichert, aber muss beim Einloesen gegen eine
 --     Allowlist im SvelteKit-Server geprueft werden (Open-Redirect-Schutz).
 -- =============================================================================

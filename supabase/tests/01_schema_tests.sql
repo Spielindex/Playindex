@@ -211,3 +211,51 @@ from booking.bookings b left join booking.open_matches om on om.booking_id=b.id
 where b.status='cancelled';
 
 select event, payload from booking.booking_events order by id;
+
+\echo ''
+\echo '=== 10. Identitaets-Bruecke zwischen zwei Projekten ==='
+reset role;
+select set_config('request.jwt.claim.sub','', false);
+do $$
+declare v_uid uuid; v_new uuid;
+begin
+  -- Unbestaetigte Mail darf NICHT automatisch verknuepft werden
+  update auth.users set email_confirmed_at = null where email = 'alex@example.com';
+  v_uid := sso.resolve_identity('tennisindex','tx-1','alex@example.com');
+  if v_uid is null then
+    raise notice '  [OK]   unbestaetigte E-Mail wird nicht auto-verknuepft';
+  else
+    raise notice '  [FAIL] unbestaetigte E-Mail wurde verknuepft!';
+  end if;
+
+  update auth.users set email_confirmed_at = now() where email = 'alex@example.com';
+  v_uid := sso.resolve_identity('tennisindex','tx-1','alex@example.com');
+  if v_uid = '11111111-1111-1111-1111-111111111111' then
+    raise notice '  [OK]   bestaetigte E-Mail wird verknuepft';
+  else
+    raise notice '  [FAIL] Verknuepfung fehlgeschlagen: %', v_uid;
+  end if;
+
+  -- Zweiter Aufruf trifft die Verknuepfung, nicht mehr die E-Mail
+  update auth.users set email = 'alex+neu@example.com' where id = '11111111-1111-1111-1111-111111111111';
+  v_uid := sso.resolve_identity('tennisindex','tx-1', null);
+  if v_uid = '11111111-1111-1111-1111-111111111111' then
+    raise notice '  [OK]   Verknuepfung ueberlebt E-Mail-Wechsel';
+  else
+    raise notice '  [FAIL] Verknuepfung verloren';
+  end if;
+
+  -- Unbekanntes Quellkonto -> NULL (Aufrufer legt per Admin-API an)
+  if sso.resolve_identity('tennisindex','tx-999','niemand@example.com') is null then
+    raise notice '  [OK]   unbekanntes Quellkonto liefert NULL';
+  else
+    raise notice '  [FAIL] unbekanntes Quellkonto aufgeloest';
+  end if;
+
+  -- Nonce: einmal true, dann false
+  if sso.claim_nonce('nonce-abc','tennisindex') and not sso.claim_nonce('nonce-abc','tennisindex') then
+    raise notice '  [OK]   Nonce-Replay abgewiesen';
+  else
+    raise notice '  [FAIL] Nonce-Replay moeglich';
+  end if;
+end $$;
