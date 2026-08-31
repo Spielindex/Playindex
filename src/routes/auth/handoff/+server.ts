@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
   const ticket = url.searchParams.get('t');
   if (!ticket) redirect(303, '/login?fehler=handoff');
 
-  const { data: zeilen, error: einloeseFehler } = await ssoAdmin.rpc('consume_handoff_token', {
+  const { data: zeilen, error: einloeseFehler } = await ssoAdmin().rpc('consume_handoff_token', {
     p_token: ticket
   });
   const treffer = zeilen?.[0];
@@ -33,12 +33,12 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
     redirect(303, '/login?fehler=handoff_abgelaufen');
   }
 
-  const { data: nutzer, error: nutzerFehler } = await supabaseAdmin.auth.admin.getUserById(
+  const { data: nutzer, error: nutzerFehler } = await supabaseAdmin().auth.admin.getUserById(
     treffer.user_id
   );
   if (nutzerFehler || !nutzer.user?.email) redirect(303, '/login?fehler=handoff');
 
-  const { data: link, error: linkFehler } = await supabaseAdmin.auth.admin.generateLink({
+  const { data: link, error: linkFehler } = await supabaseAdmin().auth.admin.generateLink({
     type: 'magiclink',
     email: nutzer.user.email
   });

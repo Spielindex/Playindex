@@ -1,18 +1,23 @@
 import { createServerClient } from '@supabase/ssr';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { env as oeffentlich } from '$env/dynamic/public';
 import type { Database } from '$lib/types/database';
 
 /**
  * Legt pro Request einen Supabase-Client an, der seine Session in Cookies
  * haelt. Default-Schema ist `booking` - fuer das zentrale Profil wird per
  * `.schema('public')` umgeschaltet.
+ *
+ * `$env/dynamic/*` statt `$env/static/*`: statische Env wird zur BUILDZEIT
+ * eingesetzt, was den Cloudflare-Build ohne gesetzte Variablen abbrechen
+ * laesst. Dynamische Env kommt zur Laufzeit aus den Worker-Bindings - der
+ * Build bleibt konfigurationsfrei und Secrets landen nicht im Bundle.
  */
 const supabase: Handle = async ({ event, resolve }) => {
   event.locals.supabase = createServerClient<Database, 'booking'>(
-    PUBLIC_SUPABASE_URL,
-    PUBLIC_SUPABASE_ANON_KEY,
+    oeffentlich.PUBLIC_SUPABASE_URL,
+    oeffentlich.PUBLIC_SUPABASE_ANON_KEY,
     {
       db: { schema: 'booking' },
       cookies: {

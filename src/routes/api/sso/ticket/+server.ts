@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { PUBLIC_SITE_URL } from '$env/static/public';
+import { env as oeffentlich } from '$env/dynamic/public';
 import { ssoAdmin, supabaseAdmin } from '$lib/server/supabase-admin';
 import { partnerSecret, signaturPruefen, sicheresZiel, zeitstempelGueltig } from '$lib/server/sso';
 
@@ -21,7 +21,7 @@ import { partnerSecret, signaturPruefen, sicheresZiel, zeitstempelGueltig } from
  * HMAC-Secret und kann damit ausschliesslich Tickets fuer Nutzer anfordern -
  * keine Daten lesen, nichts schreiben.
  */
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, url, getClientAddress }) => {
   const quelle = request.headers.get('x-playindex-partner') ?? '';
   const timestamp = request.headers.get('x-playindex-timestamp') ?? '';
   const nonce = request.headers.get('x-playindex-nonce') ?? '';
@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   }
 
   // Replay-Schutz: die Nonce wird in der DB beansprucht, das INSERT ist die Pruefung.
-  const { data: nonceFrei, error: nonceFehler } = await ssoAdmin.rpc('claim_nonce', {
+  const { data: nonceFrei, error: nonceFehler } = await ssoAdmin().rpc('claim_nonce', {
     p_nonce: nonce,
     p_source: quelle
   });
@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   if (!externeId) return json({ error: 'external_user_id fehlt' }, { status: 400 });
 
   // 1. Bestehende Verknuepfung oder bestaetigte E-Mail
-  const { data: aufgeloest, error: resolveFehler } = await ssoAdmin.rpc('resolve_identity', {
+  const { data: aufgeloest, error: resolveFehler } = await ssoAdmin().rpc('resolve_identity', {
     p_source: quelle,
     p_external_user_id: externeId,
     p_email: email
@@ -75,7 +75,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   if (!userId) {
     if (!email) return json({ error: 'email_required' }, { status: 400 });
 
-    const { data: neu, error: createFehler } = await supabaseAdmin.auth.admin.createUser({
+    const { data: neu, error: createFehler } = await supabaseAdmin().auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: { angelegt_ueber: quelle }
@@ -83,7 +83,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
     if (createFehler || !neu.user) return json({ error: 'create_failed' }, { status: 500 });
 
     userId = neu.user.id;
-    await ssoAdmin.rpc('link_identity', {
+    await ssoAdmin().rpc('link_identity', {
       p_source: quelle,
       p_external_user_id: externeId,
       p_user_id: userId,
@@ -94,7 +94,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
   const ziel = sicheresZiel(payload.redirect_to, '/');
 
-  const { data: ticket, error: ticketFehler } = await ssoAdmin.rpc('issue_handoff_token', {
+  const { data: ticket, error: ticketFehler } = await ssoAdmin().rpc('issue_handoff_token', {
     p_user_id: userId,
     p_issued_by: quelle,
     p_redirect_to: ziel,
@@ -103,8 +103,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   });
   if (ticketFehler || !ticket) return json({ error: 'issue_failed' }, { status: 500 });
 
+  // url.origin als Rueckfall: dann funktioniert der Handoff auch in einer
+  // Preview-Deployment-URL, ohne dass jemand PUBLIC_SITE_URL nachziehen muss.
+  const basis = oeffentlich.PUBLIC_SITE_URL || url.origin;
+
   return json({
-    url: `${PUBLIC_SITE_URL}/auth/handoff?t=${encodeURIComponent(ticket)}`,
+    url: `${basis}/auth/handoff?t=${encodeURIComponent(ticket)}`,
     expires_in: 60
   });
 };

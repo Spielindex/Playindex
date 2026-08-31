@@ -1,5 +1,5 @@
 import { createBrowserClient, createServerClient, isBrowser } from '@supabase/ssr';
-import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { env as oeffentlich } from '$env/dynamic/public';
 import type { Database } from '$lib/types/database';
 import type { LayoutLoad } from './$types';
 
@@ -8,11 +8,11 @@ export const load: LayoutLoad = async ({ data, depends, fetch }) => {
   depends('supabase:auth');
 
   const supabase = isBrowser()
-    ? createBrowserClient<Database, 'booking'>(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+    ? createBrowserClient<Database, 'booking'>(oeffentlich.PUBLIC_SUPABASE_URL, oeffentlich.PUBLIC_SUPABASE_ANON_KEY, {
         db: { schema: 'booking' },
         global: { fetch }
       })
-    : createServerClient<Database, 'booking'>(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+    : createServerClient<Database, 'booking'>(oeffentlich.PUBLIC_SUPABASE_URL, oeffentlich.PUBLIC_SUPABASE_ANON_KEY, {
         db: { schema: 'booking' },
         global: { fetch },
         cookies: { getAll: () => data.cookies }

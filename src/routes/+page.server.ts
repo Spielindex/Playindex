@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { PUBLIC_DEFAULT_CLUB } from '$env/static/public';
+import { env as oeffentlich } from '$env/dynamic/public';
 import type { PageServerLoad } from './$types';
 
 /**
@@ -7,5 +7,5 @@ import type { PageServerLoad } from './$types';
  * ins Grid. Klick 1 von 3 wird nicht fuer eine Landingpage verschwendet.
  */
 export const load: PageServerLoad = async () => {
-  redirect(307, `/buchen/${PUBLIC_DEFAULT_CLUB}`);
+  redirect(307, `/buchen/${oeffentlich.PUBLIC_DEFAULT_CLUB ?? 'sportcenter-hahn'}`);
 };

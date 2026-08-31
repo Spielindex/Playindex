@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { env as geheim } from '$env/dynamic/private';
+import { env as oeffentlich } from '$env/dynamic/public';
 import type { Database } from '$lib/types/database';
 
 const optionen = {
@@ -8,21 +8,8 @@ const optionen = {
 } as const;
 
 /**
- * Service-Role-Client. Umgeht RLS vollstaendig.
- *
- * Dieses Modul liegt in `src/lib/server/**` - SvelteKit bricht den Build ab,
- * wenn es je aus Client-Code importiert wird. Das ist die wichtigste
- * Einzelmassnahme gegen ein geleaktes Service-Role-Key.
- *
- * Erlaubte Aufrufer: /auth/handoff, /api/sso/ticket, spaeter Zahlungs-Webhooks.
+ * Signaturen der SSO-Funktionen (Schema `sso`, nur fuer service_role).
  */
-export const supabaseAdmin = createClient<Database, 'booking'>(
-  PUBLIC_SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  { ...optionen, db: { schema: 'booking' } }
-);
-
-/** Signaturen der SSO-Funktionen (Schema `sso`, nur fuer service_role). */
 type SsoDatabase = {
   sso: {
     Tables: Record<string, never>;
@@ -63,8 +50,47 @@ type SsoDatabase = {
   };
 };
 
-export const ssoAdmin = createClient<SsoDatabase, 'sso'>(
-  PUBLIC_SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  { ...optionen, db: { schema: 'sso' } }
-);
+function konfiguration() {
+  const url = oeffentlich.PUBLIC_SUPABASE_URL;
+  const key = geheim.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      'PUBLIC_SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY müssen gesetzt sein ' +
+        '(Cloudflare: Settings → Variables and Secrets).'
+    );
+  }
+  return { url, key };
+}
+
+let cacheAdmin: SupabaseClient<Database, 'booking'> | null = null;
+let cacheSso: SupabaseClient<SsoDatabase, 'sso'> | null = null;
+
+/**
+ * Service-Role-Client. Umgeht RLS vollstaendig.
+ *
+ * Dieses Modul liegt in `src/lib/server/**` - SvelteKit bricht den Build ab,
+ * wenn es je aus Client-Code importiert wird. Das ist die wichtigste
+ * Einzelmassnahme gegen ein geleaktes Service-Role-Key.
+ *
+ * Bewusst LAZY: auf Cloudflare Workers stehen die Bindings aus
+ * `$env/dynamic/private` erst innerhalb eines Requests bereit. Ein Client, der
+ * beim Laden des Moduls gebaut wird, bekaeme ein leeres Key.
+ *
+ * Erlaubte Aufrufer: /auth/handoff, /api/sso/ticket, spaeter Zahlungs-Webhooks.
+ */
+export function supabaseAdmin(): SupabaseClient<Database, 'booking'> {
+  if (!cacheAdmin) {
+    const { url, key } = konfiguration();
+    cacheAdmin = createClient<Database, 'booking'>(url, key, { ...optionen, db: { schema: 'booking' } });
+  }
+  return cacheAdmin;
+}
+
+/** Zugriff auf das `sso`-Schema. Ebenfalls nur mit service_role erreichbar. */
+export function ssoAdmin(): SupabaseClient<SsoDatabase, 'sso'> {
+  if (!cacheSso) {
+    const { url, key } = konfiguration();
+    cacheSso = createClient<SsoDatabase, 'sso'>(url, key, { ...optionen, db: { schema: 'sso' } });
+  }
+  return cacheSso;
+}

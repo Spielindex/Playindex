@@ -192,11 +192,30 @@ Schritt 5 braucht Lesezugriff auf `auth.users.encrypted_password` in Projekt B
 (direkte DB-Verbindung, nicht über die API) und `admin.createUser` mit
 `password_hash` in Projekt A. Niemand muss sich neu registrieren.
 
-## Deployment (Cloudflare Pages)
+## Deployment (Cloudflare)
+
+**Env wird zur Laufzeit gelesen, nicht zur Buildzeit.** Das Projekt nutzt
+durchgehend `$env/dynamic/*`. Der Grund ist doppelt:
+
+1. `$env/static/*` wird beim Build eingesetzt. Fehlt eine Variable in der
+   Build-Umgebung, bricht der Build ab — `"PUBLIC_SUPABASE_URL" is not exported
+   by "virtual:env/static/public"`. Mit dynamischer Env baut das Projekt ohne
+   jede Konfiguration.
+2. `$env/static/private` hätte das Service-Role-Key fest ins Bundle geschrieben.
+   Dynamisch kommt es aus den Worker-Bindings und steht nirgends im Artefakt.
+
+Der Service-Role-Client wird deshalb **lazy** erzeugt: auf Workers stehen die
+Bindings erst innerhalb eines Requests bereit, ein Client auf Modulebene bekäme
+ein leeres Key.
+
+Einrichtung:
 
 - Build `npm run build`, Output `.svelte-kit/cloudflare`
-- Variablen aus `.env.example`; `SUPABASE_SERVICE_ROLE_KEY` und
-  `SSO_PARTNER_SECRETS` als **Secret**, nicht als Plaintext-Variable
+- Variablen aus `.env.example` unter **Settings → Variables and Secrets**
+  eintragen — nicht unter „Build variables"
+- `SUPABASE_SERVICE_ROLE_KEY` und `SSO_PARTNER_SECRETS` als Typ **Secret**
+- `PUBLIC_SITE_URL` ist optional; ohne sie nutzen Handoff und
+  Bestätigungsmails `url.origin`, was auch in Preview-Deployments stimmt
 - Supabase → Authentication → URL Configuration: `https://playindex.de/auth/callback`
   und `https://playindex.de/auth/confirm` als Redirect-URLs eintragen
 - Supabase → Settings → API → Exposed schemas: `booking`, `sso`
